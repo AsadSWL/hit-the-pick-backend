@@ -109,7 +109,7 @@ exports.syncSportsData = async (req, res) => {
 
         for (const league of leagues) {
             const oddsResponse = await axios.get(
-                `https://api.the-odds-api.com/v4/sports/${league.key}/odds?regions=us&oddsFormat=american&apiKey=${apiKey}`
+                `https://api.the-odds-api.com/v4/sports/${league.key}/odds/?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`
             );
             const matches = oddsResponse.data;
 
