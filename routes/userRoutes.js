@@ -10,9 +10,14 @@ router.put('/update-profile', authMiddleware, roleMiddleware(['user']), userCont
 router.put('/update-password', authMiddleware, roleMiddleware(['user']), userController.updatePassword);
 
 router.get('/get-picks', userController.getAvailablePicks);
+router.get('/free-picks', userController.getFreePicks);
 router.get('/pick/:id', userController.getPick);
+router.get('/package/:id', userController.getPackage);
+router.get('/subscription/:id', userController.getSubscription);
 router.get('/get-packages', userController.getAvailablePackages);
 router.get('/get-subscriptions', userController.getAvailableSubscriptions);
+router.get('/subscription/:id/league-picks', userController.getPicksForLeagues);
+
 
 router.get('/picks', authMiddleware, roleMiddleware(['user']), userController.getAvailablePicks);
 router.get('/packages', authMiddleware, roleMiddleware(['user']), userController.getAvailablePackages);

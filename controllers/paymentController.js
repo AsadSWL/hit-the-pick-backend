@@ -16,7 +16,7 @@ exports.createOrder = async (req, res) => {
 
         if (type === 'pick') {
             item = await Pick.findById(itemId);
-            amount = item.price;
+            amount = item.units * 100;
         } else if (type === 'package') {
             item = await Package.findById(itemId);
             amount = item.price;
@@ -57,18 +57,25 @@ exports.captureOrder = async (req, res) => {
         request.requestBody({});
         const capture = await paypalClient.execute(request);
 
+        console.log('Capture Response:', capture.result);
+
+        const purchaseUnits = capture?.result?.purchase_units || [];
+        const amountValue = purchaseUnits[0]?.payments?.captures[0]?.amount?.value || '0.00';
+
         await Transaction.create({
             pickId: type === 'pick' ? itemId : null,
             packageId: type === 'package' ? itemId : null,
             subscriptionId: type === 'subscription' ? itemId : null,
+            userId: req.user.id,
             tnxID: capture.result.id,
-            amount: capture.result.purchase_units[0].amount.value,
+            amount: amountValue,
             status: 'completed',
         });
 
         res.status(200).json({ message: 'Payment successful.', capture });
     } catch (error) {
-        console.error(error.message);
+        console.error('Error during capture:', error.message);
         res.status(500).json({ message: 'Failed to capture PayPal order.' });
     }
 };
+

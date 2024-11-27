@@ -44,7 +44,16 @@ exports.updatePassword = async (req, res) => {
 
 exports.getAvailablePicks = async (req, res) => {
     try {
-        const picks = await Pick.find().populate('handicapperId match');
+        const picks = await Pick.find({playType: 'Premium'}).populate('handicapperId match');
+        res.status(200).json(picks);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.getFreePicks = async (req, res) => {
+    try {
+        const picks = await Pick.find({playType: 'Free'}).populate('handicapperId match');
         res.status(200).json(picks);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -58,6 +67,47 @@ exports.getPick = async (req, res) => {
         res.status(200).json(picks);
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+};
+
+exports.getPackage = async (req, res) => {
+    try {
+        const packageId = req.params.id;
+        const package = await Package.find({ _id: packageId }).populate('handicapper picks');
+        res.status(200).json(package);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.getSubscription = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const subscription = await Subscription.find({ _id: id }).populate('handicapper leagues');
+        res.status(200).json(subscription);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.getPicksForLeagues = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const subscription = await Subscription.findById(id).populate('leagues');
+
+        if (!subscription) {
+            return res.status(404).json({ message: 'Subscription not found' });
+        }
+
+        const leagueIds = subscription.leagues.map((league) => league._id);
+
+        const picks = await Pick.find({ league: { $in: leagueIds } });
+
+        return res.status(200).json({ subscription, picks });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Failed to fetch picks for leagues' });
     }
 };
 

@@ -19,7 +19,7 @@ router.get('/users', authMiddleware, roleMiddleware(['admin']), adminController.
 router.get('/picks', authMiddleware, roleMiddleware(['admin']), adminController.getAllPicks);
 router.get('/packages', authMiddleware, roleMiddleware(['admin']), adminController.getAllPackages);
 router.get('/subscriptions', authMiddleware, roleMiddleware(['admin']), adminController.getAllSubscriptions);
-router.get('/transactions', authMiddleware, roleMiddleware(['admin']), adminController.getAllTransactions);
+router.get('/transactions', authMiddleware, roleMiddleware(['admin', 'handicapper']), adminController.getAllTransactions);
 router.get('/get-withdrawals', authMiddleware, roleMiddleware(['admin']), adminController.getWithdrawals);
 router.put('/approve-withdrawal/:id', authMiddleware, roleMiddleware(['admin']), adminController.approveWithdrawals);
 
