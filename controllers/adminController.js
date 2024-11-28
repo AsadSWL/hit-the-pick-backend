@@ -108,14 +108,23 @@ exports.syncSportsData = async (req, res) => {
         }
 
         for (const league of leagues) {
-            const oddsResponse = await axios.get(
-                `https://api.the-odds-api.com/v4/sports/${league.key}/odds/?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`
-            );
+            var oddsResponse = [];
+            console.log(league.key);
+            try {
+                oddsResponse = await axios.get(
+                    `https://api.the-odds-api.com/v4/sports/${league.key}/odds/?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`
+                );
+                
+            } catch {
+                oddsResponse = await axios.get(
+                    `https://api.the-odds-api.com/v4/sports/${league.key}/odds/?apiKey=${apiKey}&regions=us&oddsFormat=american`
+                );
+            }
             const matches = oddsResponse.data;
 
             for (const match of matches) {
                 const existingMatch = await Match.findOne({ matchId: match.id });
-
+                console.log(match.sport_key);
                 if (!existingMatch) {
                     const matchData = await Match.create({
                         matchId: match.id,
