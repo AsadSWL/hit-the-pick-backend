@@ -137,18 +137,20 @@ exports.getPicksForLeagues = async (req, res) => {
     }
 };
 
-
 exports.getAvailablePackages = async (req, res) => {
     try {
         const currentTime = new Date();
 
-        const packages = await Package.find().populate({
-            path: 'handicapper picks',
-            populate: {
-                path: 'match',
-                match: { commenceTime: { $gt: currentTime } },
+        const packages = await Package.find().populate([
+            { path: 'handicapper' },
+            {
+                path: 'picks',
+                populate: {
+                    path: 'match',
+                    match: { commenceTime: { $gt: currentTime } },
+                },
             },
-        });
+        ]);
 
         const filteredPackages = packages.map((pkg) => ({
             ...pkg._doc,
