@@ -142,7 +142,8 @@ exports.getLeagues = async (req, res) => {
 
 exports.getGames = async (req, res) => {
     try {
-        const games = await Match.find({ sportKey: req.params.leagueKey});
+        const currentTime = new Date();
+        const games = await Match.find({ sportKey: req.params.leagueKey, commenceTime: { $gt: currentTime } });
         res.status(200).json({ games });
     } catch (error) {
         res.status(500).json({ message: 'Error fetching leagues' });
