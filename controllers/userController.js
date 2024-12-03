@@ -44,21 +44,39 @@ exports.updatePassword = async (req, res) => {
 
 exports.getAvailablePicks = async (req, res) => {
     try {
-        const picks = await Pick.find({playType: 'Premium'}).populate('handicapperId match');
-        res.status(200).json(picks);
+        const currentTime = new Date();
+
+        const picks = await Pick.find({ playType: 'Premium' }).populate({
+            path: 'handicapperId match',
+            match: { commenceTime: { $gt: currentTime } },
+        });
+
+        const validPicks = picks.filter((pick) => pick.match);
+
+        res.status(200).json(validPicks);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
+
 exports.getFreePicks = async (req, res) => {
     try {
-        const picks = await Pick.find({playType: 'Free'}).populate('handicapperId match');
-        res.status(200).json(picks);
+        const currentTime = new Date();
+
+        const picks = await Pick.find({ playType: 'Free' }).populate({
+            path: 'handicapperId match',
+            match: { commenceTime: { $gt: currentTime } },
+        });
+
+        const validPicks = picks.filter((pick) => pick.match);
+
+        res.status(200).json(validPicks);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
+
 
 exports.getPick = async (req, res) => {
     try {
@@ -102,19 +120,42 @@ exports.getPicksForLeagues = async (req, res) => {
 
         const leagueIds = subscription.leagues.map((league) => league._id);
 
-        const picks = await Pick.find({ league: { $in: leagueIds } });
+        const currentTime = new Date();
 
-        return res.status(200).json({ subscription, picks });
+        const picks = await Pick.find({ league: { $in: leagueIds } })
+            .populate({
+                path: 'match',
+                match: { commenceTime: { $gt: currentTime } }
+            });
+
+        const validPicks = picks.filter((pick) => pick.match);
+
+        return res.status(200).json({ subscription, picks: validPicks });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ message: 'Failed to fetch picks for leagues' });
     }
 };
 
+
 exports.getAvailablePackages = async (req, res) => {
     try {
-        const packages = await Package.find().populate('handicapper picks');
-        res.status(200).json(packages);
+        const currentTime = new Date();
+
+        const packages = await Package.find().populate({
+            path: 'handicapper picks',
+            populate: {
+                path: 'match',
+                match: { commenceTime: { $gt: currentTime } },
+            },
+        });
+
+        const filteredPackages = packages.map((pkg) => ({
+            ...pkg._doc,
+            picks: pkg.picks.filter((pick) => pick.match),
+        }));
+
+        res.status(200).json(filteredPackages);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
