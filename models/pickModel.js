@@ -11,6 +11,7 @@ const pickSchema = new mongoose.Schema({
     outcome: { type: String },
     playType: { type: String },
     analysis: { type: String },
+    status: { type: String, default: 'Live', },
     createdAt: { type: Date, default: Date.now }
 });
 
