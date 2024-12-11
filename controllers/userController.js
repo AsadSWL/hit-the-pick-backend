@@ -202,3 +202,23 @@ exports.getActiveSubscriptions = async (req, res) => {
         res.status(500).json({ message: 'Error fetching subscriptions' });
     }
 };
+
+exports.handicappers = async (req, res) => {
+    try {
+        const handicappers = await User.find({ role: 'handicapper' });
+        console.log(handicappers)
+        res.status(200).json(handicappers);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.getHandicapper = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const handicapper = await User.findOne({ _id: userId });
+        res.status(200).json(handicapper);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

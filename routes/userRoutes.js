@@ -30,4 +30,7 @@ router.get('/purchased-subscriptions', authMiddleware, roleMiddleware(['user']),
 router.post('/create-order', authMiddleware, paymentController.createOrder);
 router.post('/capture-order', authMiddleware, paymentController.captureOrder);
 
+router.get('/get-handicappers', userController.handicappers);
+router.get('/get-handicapper/:id', userController.getHandicapper);
+
 module.exports = router;
