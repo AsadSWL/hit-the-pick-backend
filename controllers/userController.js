@@ -49,7 +49,7 @@ exports.getAvailablePicks = async (req, res) => {
         const picks = await Pick.find({ playType: 'Premium' }).populate({
             path: 'handicapperId match',
             match: { commenceTime: { $gt: currentTime } },
-        });
+        }).populate('handicapperId');
 
         const validPicks = picks.filter((pick) => pick.match);
 
@@ -165,7 +165,7 @@ exports.getAvailablePackages = async (req, res) => {
 
 exports.getAvailableSubscriptions = async (req, res) => {
     try {
-        const subscriptions = await Subscription.find();
+        const subscriptions = await Subscription.find().populate(['handicapper']);
         res.status(200).json(subscriptions);
     } catch (error) {
         res.status(500).json({ message: error.message });
