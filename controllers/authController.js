@@ -28,6 +28,7 @@ exports.register = async (req, res) => {
             password: password,
             role: role,
             status: "Active",
+            balance: "100"
         });
 
         await user.save();

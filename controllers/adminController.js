@@ -444,3 +444,50 @@ exports.approveWithdrawals = async (req, res) => {
         res.status(500).json({ status: false, message: 'Failed to update withdrawal status.' });
     }
 };
+
+exports.deletePick = async (req, res) => {
+    try {
+        const { pickId } = req.params;
+
+        // Delete the pick directly
+        const deletedPick = await Pick.findByIdAndDelete(pickId);
+        if (!deletedPick) {
+            return res.status(404).json({ message: 'Pick not found.' });
+        }
+
+        res.status(200).json({ message: 'Pick deleted successfully, regardless of purchases.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting pick.' });
+    }
+};
+
+
+exports.deletePackage = async (req, res) => {
+    try {
+        const { packageId } = req.params;
+
+        const deletedPackage = await Package.findByIdAndDelete(packageId);
+        if (!deletedPackage) {
+            return res.status(404).json({ message: 'Package not found.' });
+        }
+
+        res.status(200).json({ message: 'Package deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting package.' });
+    }
+};
+
+exports.deleteSubscription = async (req, res) => {
+    try {
+        const { subscriptionId } = req.params;
+
+        const deletedSubscription = await Subscription.findByIdAndDelete(subscriptionId);
+        if (!deletedSubscription) {
+            return res.status(404).json({ message: 'Subscription not found.' });
+        }
+
+        res.status(200).json({ message: 'Subdcription deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting subscription.' });
+    }
+};

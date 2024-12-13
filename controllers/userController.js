@@ -3,6 +3,7 @@ const Pick = require('../models/pickModel');
 const Package = require('../models/packageModel');
 const Subscription = require('../models/subscriptionModel');
 const User = require('../models/userModel');
+const axios = require('axios');
 
 exports.updateProfile = async (req, res) => {
     try {
@@ -220,5 +221,43 @@ exports.getHandicapper = async (req, res) => {
         res.status(200).json(handicapper);
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+};
+
+exports.getRecentMatchWithLogos = async (req, res) => {
+    try {
+        const currentTime = new Date();
+
+        // Find the nearest upcoming match
+        const recentMatch = await Match.findOne({ commenceTime: { $gte: currentTime } })
+            .sort({ commenceTime: 1 });
+
+        if (!recentMatch) {
+            return res.status(404).json({ message: 'No upcoming matches found.' });
+        }
+
+
+        // Fetch team logos
+        const [homeTeamResponse, awayTeamResponse] = await Promise.all([
+            axios.get(`https://www.thesportsdb.com/api/v1/json/searchteams.php?t=${recentMatch.homeTeam}`),
+            axios.get(`https://www.thesportsdb.com/api/v1/json/searchteams.php?t=${recentMatch.awayTeam}`),
+        ]);
+
+        const homeTeamLogo = homeTeamResponse.data.teams?.[0]?.strTeamBadge || null;
+        const awayTeamLogo = awayTeamResponse.data.teams?.[0]?.strTeamBadge || null;
+
+        res.status(200).json({
+            match: {
+                homeTeam: recentMatch.homeTeam,
+                awayTeam: recentMatch.awayTeam,
+                commenceTime: recentMatch.commenceTime,
+            },
+            logos: {
+                homeTeam: homeTeamLogo,
+                awayTeam: awayTeamLogo,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching recent match or team logos.' });
     }
 };

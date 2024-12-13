@@ -23,4 +23,8 @@ router.get('/transactions', authMiddleware, roleMiddleware(['admin', 'handicappe
 router.get('/get-withdrawals', authMiddleware, roleMiddleware(['admin']), adminController.getWithdrawals);
 router.put('/approve-withdrawal/:id', authMiddleware, roleMiddleware(['admin']), adminController.approveWithdrawals);
 
+router.delete('/delete-pick/:pickId', authMiddleware, roleMiddleware(['admin']), adminController.deletePick);
+router.delete('/delete-package/:packageId', authMiddleware, roleMiddleware(['admin']), adminController.deletePackage);
+router.delete('/delete-subscription/:subscriptionId', authMiddleware, roleMiddleware(['admin']), adminController.deleteSubscription);
+
 module.exports = router;

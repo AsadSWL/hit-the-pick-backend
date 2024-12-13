@@ -1,5 +1,6 @@
 const Pick = require('../models/pickModel');
 const Subscription = require('../models/subscriptionModel');
+const Transaction = require('../models/transactionModel');
 const Package = require('../models/packageModel');
 const Match = require('../models/matchModel');
 const User = require('../models/userModel');
@@ -272,5 +273,68 @@ exports.getWithdrawals = async (req, res) => {
         res.status(201).json({ message: 'Withdraw requested successfully', withdrawals });
     } catch (error) {
         res.status(500).json({ message: 'Error requesting withdraw' });
+    }
+};
+
+exports.deletePick = async (req, res) => {
+    try {
+        const { pickId } = req.params;
+
+        const transaction = await Transaction.findOne({ pickId });
+        if (transaction) {
+            return res.status(400).json({ message: 'Cannot delete pick. Purchases have been made.' });
+        }
+
+        // Delete the pick
+        const deletedPick = await Pick.findByIdAndDelete(pickId);
+        if (!deletedPick) {
+            return res.status(404).json({ message: 'Pick not found.' });
+        }
+
+        res.status(200).json({ message: 'Pick deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting pick.' });
+    }
+};
+
+exports.deletePackage = async (req, res) => {
+    try {
+        const { packageId } = req.params;
+
+        const transaction = await Transaction.findOne({ packageId });
+        if (transaction) {
+            return res.status(400).json({ message: 'Cannot delete package. Purchases have been made.' });
+        }
+
+        // Delete the pick
+        const deletedPackage = await Package.findByIdAndDelete(packageId);
+        if (!deletedPackage) {
+            return res.status(404).json({ message: 'Package not found.' });
+        }
+
+        res.status(200).json({ message: 'Package deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting package.' });
+    }
+};
+
+exports.deleteSubscription = async (req, res) => {
+    try {
+        const { subscriptionId } = req.params;
+
+        const transaction = await Transaction.findOne({ subscriptionId });
+        if (transaction) {
+            return res.status(400).json({ message: 'Cannot delete subscription. Purchases have been made.' });
+        }
+
+        // Delete the pick
+        const deletedSubscription = await Subscription.findByIdAndDelete(subscriptionId);
+        if (!deletedSubscription) {
+            return res.status(404).json({ message: 'Subscription not found.' });
+        }
+
+        res.status(200).json({ message: 'Subdcription deleted successfully.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting subscription.' });
     }
 };

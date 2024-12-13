@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
     status: { type: String },
     profileImage: { type: String },
     bio: { type: String },
+    balance: { type: String },
     resetPasswordToken: String,
     resetPasswordExpires: Date
 });
