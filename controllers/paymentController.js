@@ -3,6 +3,7 @@ const Transaction = require('../models/transactionModel');
 const Package = require('../models/packageModel');
 const Subscription = require('../models/subscriptionModel');
 const Pick = require('../models/pickModel');
+const stripe = require('stripe')(process.env.STRIPE_TEST_SECRET_KEY);
 
 const paypalClient = new paypal.core.PayPalHttpClient(
     new paypal.core.SandboxEnvironment(process.env.PAYPAL_CLIENT_ID, process.env.PAYPAL_SECRET)
@@ -79,3 +80,40 @@ exports.captureOrder = async (req, res) => {
     }
 };
 
+
+exports.createPaymentIntent = async (req, res) => {
+    const { type, itemId } = req.body;
+
+    try {
+        let item, amount;
+
+        if (type === 'pick') {
+            item = await Pick.findById(itemId);
+            amount = item.units * 100; // Stripe accepts amounts in cents
+        } else if (type === 'package') {
+            item = await Package.findById(itemId);
+            amount = item.price * 100; // Convert to cents
+        } else if (type === 'subscription') {
+            item = await Subscription.findById(itemId);
+            amount = item.price * 100; // Convert to cents
+        } else {
+            return res.status(400).json({ message: 'Invalid purchase type.' });
+        }
+
+        // Create a Payment Intent
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: amount, // Amount in cents
+            currency: 'usd',
+            payment_method_types: ['card'], // Supports card payments
+            metadata: {
+                type,
+                itemId,
+            },
+        });
+
+        res.status(201).json({ clientSecret: paymentIntent.client_secret });
+    } catch (error) {
+        console.error('Error creating Stripe Payment Intent:', error.message);
+        res.status(500).json({ message: 'Failed to create payment intent.' });
+    }
+};

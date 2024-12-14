@@ -30,6 +30,7 @@ router.get('/purchased-subscriptions', authMiddleware, roleMiddleware(['user']),
 
 router.post('/create-order', authMiddleware, paymentController.createOrder);
 router.post('/capture-order', authMiddleware, paymentController.captureOrder);
+router.post('/create-payment-intent', paymentController.createPaymentIntent);
 
 router.get('/get-handicappers', userController.handicappers);
 router.get('/get-handicapper/:id', userController.getHandicapper);

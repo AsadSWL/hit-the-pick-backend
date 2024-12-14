@@ -40,6 +40,7 @@ exports.register = async (req, res) => {
             email: user.email,
             role: user.role,
             bio: user?.bio ? user?.bio : '',
+            balance: user?.balance ? user?.balance : '0',
             image: user?.profileImage ? user?.profileImage : '',
         };
 
@@ -76,6 +77,7 @@ exports.login = async (req, res) => {
             email: user.email,
             role: user.role,
             bio: user?.bio ? user?.bio : '',
+            balance: user?.balance ? user?.balance : 0,
             image: user?.profileImage ? user?.profileImage : '',
         };
 
