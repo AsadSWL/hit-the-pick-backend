@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const pickSchema = new mongoose.Schema({
     handicapperId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     title: { type: String },
-    units: { type: Number },
     league: { type: String },
     match: { type: mongoose.Schema.Types.ObjectId, ref: 'Match', required: true },
     bookmaker: { type: mongoose.Schema.Types.ObjectId, ref: 'Bookmaker', required: true },

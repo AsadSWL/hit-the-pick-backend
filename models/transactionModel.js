@@ -7,6 +7,7 @@ const transactionSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     tnxID: { type: String },
     amount: { type: String },
+    method: { type: String },
     status: { type: String },
     createdAt: { type: Date, default: Date.now }
 });

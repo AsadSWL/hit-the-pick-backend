@@ -207,7 +207,7 @@ exports.getActiveSubscriptions = async (req, res) => {
 exports.handicappers = async (req, res) => {
     try {
         const handicappers = await User.find({ role: 'handicapper' });
-        console.log(handicappers)
+
         res.status(200).json(handicappers);
     } catch (error) {
         res.status(500).json({ message: error.message });

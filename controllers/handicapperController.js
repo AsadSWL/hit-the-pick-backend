@@ -100,13 +100,12 @@ exports.getDashboardStats = async (req, res) => {
 
 exports.createPick = async (req, res) => {
     try {
-        const { title, units, outcome, league, bookmaker, market, match, playType, analysis } = req.body;
+        const { title, outcome, league, bookmaker, market, match, playType, analysis } = req.body;
         const handicapperId = req.user.id;
 
         const pick = new Pick({
             handicapperId,
             title,
-            units,
             league,
             match,
             outcome,

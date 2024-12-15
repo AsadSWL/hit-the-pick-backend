@@ -7,7 +7,7 @@ router.post('/register', authController.register);
 
 router.post('/login', authController.login);
 
-router.get('/verify', authController.varify);
+router.get('/verify/:token', authController.verify);
 
 router.post('/forgot-password', authController.forgotPassword);
 
