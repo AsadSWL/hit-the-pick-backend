@@ -9,6 +9,7 @@ const router = express.Router();
 router.put('/update-profile', authMiddleware, roleMiddleware(['user']), userController.updateProfile);
 router.put('/update-password', authMiddleware, roleMiddleware(['user']), userController.updatePassword);
 
+router.get('/get-banner', userController.getBanner);
 router.get('/recent-match', userController.getRecentMatchWithLogos);
 router.get('/get-picks', userController.getAvailablePicks);
 router.get('/free-picks', userController.getFreePicks);

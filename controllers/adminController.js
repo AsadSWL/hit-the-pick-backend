@@ -10,6 +10,84 @@ const Transaction = require('../models/transactionModel');
 const Billing = require('../models/billingModel');
 const User = require('../models/userModel');
 const jwt = require('jsonwebtoken');
+const Banner = require('../models/bannerModel');
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/banner/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + path.extname(file.originalname));
+    }
+});
+
+const uploadBanner = multer({
+    storage,
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'), false);
+        }
+    }
+}).fields([
+    { name: 'home_team_logo', maxCount: 1 },
+    { name: 'away_team_logo', maxCount: 1 }
+]);
+
+exports.addBanner = async (req, res) => {
+    uploadBanner(req, res, async (err) => {
+        if (err) {
+            return res.status(400).json({ status: false, error: err.message });
+        }
+
+        const { home_team, away_team, game_time } = req.body;
+        
+        const homeTeamLogoUrl = req.files['home_team_logo'] ? `/uploads/banner/${req.files['home_team_logo'][0].filename}` : null;
+        const awayTeamLogoUrl = req.files['away_team_logo'] ? `/uploads/banner/${req.files['away_team_logo'][0].filename}` : null;
+
+        try {
+            await Banner.deleteMany({});
+
+            const banner = new Banner({
+                home_team,
+                away_team,
+                game_time,
+                home_team_logo: homeTeamLogoUrl,
+                away_team_logo: awayTeamLogoUrl
+            });
+
+            await banner.save();
+
+            res.status(200).json({ message: 'Banner added successfully', banner });
+        } catch (error) {
+            res.status(500).json({ message: 'Error adding banner', error: error.message });
+        }
+    });
+};
+
+exports.getBanner = async (req, res) => {
+    try {
+        const banner = await Banner.findOne();
+
+        if (!banner) {
+            return res.status(404).json({ message: 'No match data found' });
+        }
+
+        res.status(200).json({
+            home_team: banner.home_team,
+            away_team: banner.away_team,
+            game_time: banner.game_time,
+            home_team_logo: banner.home_team_logo,
+            away_team_logo: banner.away_team_logo
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error retrieving match data', error: error.message });
+    }
+}
 
 exports.updateProfile = async (req, res) => {
     try {

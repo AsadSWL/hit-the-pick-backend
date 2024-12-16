@@ -15,6 +15,8 @@ router.put('/toggle-user/:id', authMiddleware, roleMiddleware(['admin']), adminC
 
 router.get('/handicappers', authMiddleware, roleMiddleware(['admin']), adminController.getAllHandicappers);
 router.get('/users', authMiddleware, roleMiddleware(['admin']), adminController.getAllUsers);
+router.post('/add-banner', authMiddleware, roleMiddleware(['admin']), adminController.addBanner);
+router.get('/get-banner', authMiddleware, roleMiddleware(['admin']), adminController.getBanner);
 
 router.get('/picks', authMiddleware, roleMiddleware(['admin']), adminController.getAllPicks);
 router.get('/packages', authMiddleware, roleMiddleware(['admin']), adminController.getAllPackages);

@@ -4,6 +4,7 @@ const Package = require('../models/packageModel');
 const Subscription = require('../models/subscriptionModel');
 const User = require('../models/userModel');
 const axios = require('axios');
+const Banner = require('../models/bannerModel');
 
 exports.updateProfile = async (req, res) => {
     try {
@@ -261,3 +262,23 @@ exports.getRecentMatchWithLogos = async (req, res) => {
         res.status(500).json({ message: 'Error fetching recent match or team logos.' });
     }
 };
+
+exports.getBanner = async (req, res) => {
+    try {
+        const banner = await Banner.findOne();
+
+        if (!banner) {
+            return res.status(404).json({ message: 'No match data found' });
+        }
+
+        res.status(200).json({
+            home_team: banner.home_team,
+            away_team: banner.away_team,
+            game_time: banner.game_time,
+            home_team_logo: banner.home_team_logo,
+            away_team_logo: banner.away_team_logo
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error retrieving match data', error: error.message });
+    }
+}

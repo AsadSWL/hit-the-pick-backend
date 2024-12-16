@@ -126,6 +126,7 @@ exports.captureOrder = async (req, res) => {
             status: 'completed',
         });
 
+        const user = await User.findById(req.user.id);
         await sendPurchaseEmail(user, {
             type,
             itemId,
@@ -144,7 +145,6 @@ exports.captureOrder = async (req, res) => {
 
 exports.createPaymentIntent = async (req, res) => {
     const { type, itemId } = req.body;
-    console.log(req.body);
     try {
         let item, amount;
 
@@ -185,6 +185,7 @@ exports.createPaymentIntent = async (req, res) => {
             status: 'completed',
         });
 
+        const user = await User.findById(req.user.id);
         await sendPurchaseEmail(user, {
             type,
             itemId,
