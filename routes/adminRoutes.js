@@ -9,7 +9,7 @@ router.get('/dashboard-stats', authMiddleware, roleMiddleware(['admin']), adminC
 router.put('/update-profile', authMiddleware, roleMiddleware(['admin']), adminController.updateProfile);
 router.put('/update-password', authMiddleware, roleMiddleware(['admin']), adminController.updatePassword);
 
-router.get('/sync-sports-data', adminController.syncSportsData);
+// router.get('/sync-sports-data', adminController.syncSportsData);
 
 router.put('/toggle-user/:id', authMiddleware, roleMiddleware(['admin']), adminController.toggleUser);
 
