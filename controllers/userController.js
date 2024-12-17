@@ -48,19 +48,37 @@ exports.getAvailablePicks = async (req, res) => {
     try {
         const currentTime = new Date();
 
-        const picks = await Pick.find({ playType: 'Premium' }).populate({
-            path: 'handicapperId match',
-            match: { commenceTime: { $gt: currentTime } },
-        }).populate('handicapperId');
+        const picks = await Pick.find({ playType: 'Premium' })
+            .populate({
+                path: 'handicapperId'
+            })
+            .populate({
+                path: 'match',
+                match: { commenceTime: { $gt: currentTime } },
+            })
+            .populate({
+                path: 'market',
+                select: 'outcomes', 
+            });
 
         const validPicks = picks.filter((pick) => pick.match);
 
-        res.status(200).json(validPicks);
+        const picksWithSelectedOutcome = validPicks.map((pick) => {
+            const selectedOutcome = pick.market?.outcomes?.find(
+                (outcome) => outcome._id.toString() === pick.outcome
+            );
+
+            return {
+                ...pick._doc,
+                selectedOutcome: selectedOutcome || null, 
+            };
+        });
+
+        res.status(200).json(picksWithSelectedOutcome);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
-
 
 exports.getFreePicks = async (req, res) => {
     try {
