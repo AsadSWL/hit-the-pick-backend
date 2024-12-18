@@ -14,7 +14,6 @@ const Banner = require('../models/bannerModel');
 const OddsAPI = require('../models/OddsAPIModel');
 const multer = require('multer');
 const path = require('path');
-const cron = require('node-cron');
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -165,61 +164,167 @@ exports.getDashboardStats = async (req, res) => {
     }
 }
 
-let currentApiKeyIndex = 0;
-let apiKeys = [];
-
-const fetchWithRetries = async (url, retries = 3) => {
-    for (let i = 0; i < retries; i++) {
-        try {
-            const response = await axios.get(url);
-            return response;
-        } catch (error) {
-            console.error(`API call failed (attempt ${i + 1}):`, error.message);
-        }
-    }
-    throw new Error('All retry attempts failed.');
-};
-
-const switchApiKey = () => {
-    currentApiKeyIndex = (currentApiKeyIndex + 1) % apiKeys.length;
-    console.warn(`Switching to API key at index ${currentApiKeyIndex}`);
-};
-
-const loadApiKeysFromDB = async () => {
+exports.syncSportsData = async () => {
     try {
-        const keysFromDB = await OddsAPI.find({}, 'apiKey');
-        apiKeys = keysFromDB.map((keyDoc) => keyDoc.apiKey);
-        if (apiKeys.length === 0) {
-            throw new Error('No API keys found in the database.');
+        const apiKey = process.env.ODDS_API_KEY;
+
+        // Fetch all leagues
+        const leaguesResponse = await axios.get(`https://api.the-odds-api.com/v4/sports?apiKey=${apiKey}`);
+        const leagues = leaguesResponse.data;
+
+        // Update leagues in database
+        for (const league of leagues) {
+            const existingLeague = await League.findOne({ key: league.key });
+
+            if (!existingLeague) {
+                await League.create({
+                    key: league.key,
+                    group: league.group,
+                    title: league.title,
+                    description: league.description,
+                    active: league.active,
+                    hasOutrights: league.has_outrights,
+                });
+            }
         }
-        console.log('API keys loaded successfully from the database.');
+
+        const activeLeagues = await League.find({ active: true });
+
+        for (const league of activeLeagues) {
+            let oddsResponse = [];
+            console.log(league.key);
+            try {
+                oddsResponse = await axios.get(
+                    `https://api.the-odds-api.com/v4/sports/${league.key}/odds/?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`
+                );
+            } catch {
+                oddsResponse = await axios.get(
+                    `https://api.the-odds-api.com/v4/sports/${league.key}/odds/?apiKey=${apiKey}&regions=us&oddsFormat=american`
+                );
+            }
+            const matches = oddsResponse.data;
+
+            for (const match of matches) {
+                const existingMatch = await Match.findOne({ matchId: match.id });
+                console.log(match.sport_key);
+                if (!existingMatch) {
+                    const matchData = await Match.create({
+                        matchId: match.id,
+                        sportKey: match.sport_key,
+                        sportTitle: match.sport_title,
+                        commenceTime: match.commence_time,
+                        homeTeam: match.home_team,
+                        awayTeam: match.away_team,
+                    });
+
+                    for (const bookmaker of match.bookmakers) {
+                        const bookmakerData = await Bookmaker.create({
+                            key: bookmaker.key,
+                            title: bookmaker.title,
+                            lastUpdate: bookmaker.last_update,
+                        });
+
+                        for (const market of bookmaker.markets) {
+                            const marketData = await Market.create({
+                                key: market.key,
+                                lastUpdate: market.last_update,
+                                outcomes: market.outcomes,
+                            });
+
+                            bookmakerData.markets.push(marketData._id);
+                        }
+
+                        await bookmakerData.save();
+                        matchData.bookmakers.push(bookmakerData._id);
+                    }
+
+                    await matchData.save();
+                }
+            }
+        }
+
+        res.status(200).json({ status: true, message: 'Active leagues and matches synced successfully.' });
     } catch (error) {
-        console.error('Failed to load API keys from the database:', error.message);
-        throw error;
+        console.error('Error syncing sports data:', error.message);
+        res.status(500).json({ status: false, message: 'Failed to sync sports data.' });
+    }
+};
+
+exports.checkPickStatus = async () => {
+    try {
+        const livePicks = await Pick.find({ status: 'Live' }).populate('match market bookmaker');
+        for (const pick of livePicks) {
+            try {
+                // Fetch the latest odds and match result
+                const oddsResponse = await axios.get(
+                    `https://api.the-odds-api.com/v4/sports/${pick.match.sportKey}/odds/?apiKey=${process.env.ODDS_API_KEY}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`
+                );
+                const matchDetails = oddsResponse.data.find(
+                    (match) => match.id === pick.match.matchId
+                );
+                if (!matchDetails) continue;
+                const result = determineResult(matchDetails, pick.market, pick.outcome);
+                if (result.status === 'Won') {
+                    // Update pick status
+                    pick.status = 'Won';
+                    await pick.save();
+                    // Handle winnings
+                    const transaction = await Transaction.findOne({ pickId: pick._id });
+                    if (transaction) {
+                        const { amount } = transaction;
+                        const user = await User.findById(transaction.userId);
+                        const handicapper = await User.findById(pick.handicapperId);
+                        const winnings = calculateWinnings(amount, result.odds);
+
+                        user.balance = (user.balance || 0) + winnings.userBonus;
+                        handicapper.balance = (handicapper.balance || 0) + winnings.handicapperShare + 25;
+                        await user.save();
+                        await handicapper.save();
+                    }
+                } else if (result.status === 'Lost') {
+                    pick.status = 'Lost';
+                    await pick.save();
+                    const transaction = await Transaction.findOne({ pickId: pick._id });
+                    if (transaction) {
+                        const user = await User.findById(transaction.userId);
+                        user.balance = (user.balance || 0) + 25;
+                        await user.save();
+                    }
+                }
+            } catch (error) {
+                console.error(`Error processing pick ${pick._id}:`, error.message);
+                continue;
+            }
+        }
+    } catch (error) {
+        console.error('Error checking pick statuses:', error.message);
     }
 };
 
 function determineResult(matchDetails, market, outcome) {
     const marketData = matchDetails.bookmakers.flatMap((b) => b.markets).find((m) => m.key === market.key);
-
     if (!marketData || !marketData.outcomes) {
         return { status: 'Pending', odds: null };
     }
-
-    const selectedOutcome = marketData.outcomes.find((o) => o.name === outcome);
-
+    let selectedOutcomeName = '';
+    if(market?.outcomes[0]._id.toString() === outcome) {
+        selectedOutcomeName = market?.outcomes[0].name;
+    }
+    if(market?.outcomes[1]._id.toString() === outcome) {
+        selectedOutcomeName = market?.outcomes[1].name;
+    }
+    const selectedOutcome = marketData.outcomes.find((o) => o.name === selectedOutcomeName);
     if (!selectedOutcome) {
         return { status: 'Pending', odds: null };
     }
 
-    // Logic to determine win/loss based on market
     const isWon = checkMarketWinCondition(marketData, selectedOutcome);
     return isWon ? { status: 'Won', odds: selectedOutcome.price } : { status: 'Lost', odds: null };
 }
 
 function calculateWinnings(amount, odds) {
-    const userBonus = amount * Math.abs(odds) / 100; // Example logic for user bonus
-    const handicapperShare = amount + userBonus; // Total winning for the handicapper
+    const userBonus = 25 * Math.abs(odds);
+    const handicapperShare = amount + userBonus;
     return { userBonus, handicapperShare };
 }
 
@@ -227,13 +332,12 @@ function checkMarketWinCondition(marketData, selectedOutcome) {
     if (!marketData || !marketData.outcomes || !selectedOutcome) {
         throw new Error('Invalid input: marketData or selectedOutcome is missing.');
     }
-
     switch (marketData.key) {
-        case 'h2h': // Head-to-Head
+        case 'h2h':
             return checkH2HWinCondition(marketData, selectedOutcome);
-        case 'spreads': // Point Spread
+        case 'spreads':
             return checkSpreadsWinCondition(marketData, selectedOutcome);
-        case 'totals': // Over/Under Totals
+        case 'totals':
             return checkTotalsWinCondition(marketData, selectedOutcome);
         default:
             console.warn(`Unsupported market type: ${marketData.key}`);
@@ -266,99 +370,6 @@ function checkTotalsWinCondition(marketData, selectedOutcome) {
         return outcome.price > 0;
     });
 }
-
-const syncSportsData = async () => {
-    try {
-        await loadApiKeysFromDB();
-        const leaguesProcessed = new Set();
-        const livePicks = await Pick.find({ status: 'Live' }).populate('match market bookmaker');
-
-        while (true) {
-            try {
-                const apiKey = apiKeys[currentApiKeyIndex];
-
-                // Fetch leagues data
-                const leaguesResponse = await fetchWithRetries(
-                    `https://api.the-odds-api.com/v4/sports?apiKey=${apiKey}`
-                );
-                const leagues = leaguesResponse.data;
-                const matchesFetched = {};
-
-                for (const league of leagues) {
-                    if (leaguesProcessed.has(league.key)) continue;
-                    try {
-                        console.log(`Fetching odds for league: ${league.key}`);
-                        let oddsResponse = await fetchWithRetries(
-                            `https://api.the-odds-api.com/v4/sports/${league.key}/odds/?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`
-                        );
-                        const matches = oddsResponse.data;
-                        matches.forEach((match) => (matchesFetched[match.id] = match));
-
-                        for (const match of matches) {
-                            const existingMatch = await Match.findOne({ matchId: match.id });
-                            if (!existingMatch) {
-                                const matchData = await Match.create({
-                                    matchId: match.id,
-                                    sportKey: match.sport_key,
-                                    sportTitle: match.sport_title,
-                                    commenceTime: match.commence_time,
-                                    homeTeam: match.home_team,
-                                    awayTeam: match.away_team,
-                                });
-                                await matchData.save();
-                            }
-                        }
-
-                        leaguesProcessed.add(league.key);
-                    } catch (leagueError) {
-                        console.error(`Error processing league ${league.key}:`, leagueError.message);
-                        switchApiKey();
-                        break;
-                    }
-                }
-
-                // Process Live Picks
-                for (const pick of livePicks) {
-                    const matchDetails = matchesFetched[pick.match.matchId];
-                    if (!matchDetails) continue;
-
-                    const result = determineResult(matchDetails, pick.market, pick.outcome);
-
-                    if (result.status === 'Won') {
-                        pick.status = 'Won';
-                        await pick.save();
-                        const transaction = await Transaction.findOne({ pickId: pick._id });
-                        if (transaction) {
-                            const { amount } = transaction;
-                            const user = await User.findById(transaction.userId);
-                            const handicapper = await User.findById(pick.handicapperId);
-                            const winnings = calculateWinnings(amount, result.odds);
-                            user.balance = (user.balance || 0) + winnings.userBonus;
-                            handicapper.balance = (handicapper.balance || 0) + winnings.handicapperShare;
-                            await user.save();
-                            await handicapper.save();
-                        }
-                    } else if (result.status === 'Lost') {
-                        pick.status = 'Lost';
-                        await pick.save();
-                    }
-                }
-
-                if (leaguesProcessed.size === leagues.length) {
-                    break;
-                }
-            } catch (error) {
-                console.error('Error syncing sports data with current API key:', error.message);
-                switchApiKey();
-            }
-        }
-
-        console.log('Leagues, matches, and picks synced successfully.');
-    } catch (error) {
-        console.error('Final Error syncing sports data:', error.message);
-    }
-};
-
 
 exports.getAllHandicappers = async (req, res) => {
     try {
@@ -514,10 +525,3 @@ exports.deleteSubscription = async (req, res) => {
         res.status(500).json({ message: 'Error deleting subscription.' });
     }
 };
-
-
-
-cron.schedule('0 * * * *', () => {
-    console.log('Running sports data sync cron job...');
-    syncSportsData();
-});

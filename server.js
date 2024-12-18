@@ -8,8 +8,34 @@ const userRoutes = require('./routes/userRoutes');
 const cors = require('cors');
 const path = require('path');
 const morgan = require('morgan');
+const adminController = require('./controllers/adminController');
+var cron = require('node-cron');
 
 const app = express();
+
+cron.schedule('0 8,14,20 * * *', async () => {
+  try {
+      console.log('Running sports data sync cron job...');
+      await adminController.syncSportsData();
+  } catch (error) {
+      console.error('Error in sports data sync cron job:', error.message);
+  }
+}, {
+  scheduled: true,
+  timezone: 'America/New_York'
+});
+
+// cron.schedule('0 8,14,20 * * *', async () => {
+//   try {
+//       console.log('Running picks results cron job...');
+//       await adminController.checkPickStatus();
+//   } catch (error) {
+//       console.error('Error in picks results cron job:', error.message);
+//   }
+// }, {
+//   scheduled: true,
+//   timezone: 'America/New_York'
+// });
 
 app.use(morgan('dev'));
 
