@@ -13,6 +13,15 @@ var cron = require('node-cron');
 
 const app = express();
 
+// cron.schedule('46 19 * * *', async () => {
+//   try {
+//       console.log('Running sports data sync cron job...');
+//       await adminController.syncSportsData();
+//   } catch (error) {
+//       console.error('Error in sports data sync cron job:', error.message);
+//   }
+// });
+
 cron.schedule('0 8,14,20 * * *', async () => {
   try {
       console.log('Running sports data sync cron job...');

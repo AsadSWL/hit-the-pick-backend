@@ -243,10 +243,9 @@ exports.syncSportsData = async () => {
             }
         }
 
-        res.status(200).json({ status: true, message: 'Active leagues and matches synced successfully.' });
+        console.log('Active leagues and matches synced successfully.');
     } catch (error) {
         console.error('Error syncing sports data:', error.message);
-        res.status(500).json({ status: false, message: 'Failed to sync sports data.' });
     }
 };
 

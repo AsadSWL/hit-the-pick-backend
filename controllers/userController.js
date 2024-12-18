@@ -50,31 +50,18 @@ exports.getAvailablePicks = async (req, res) => {
 
         const picks = await Pick.find({ playType: 'Premium' })
             .populate({
-                path: 'handicapperId'
+                path: 'handicapperId',
+                select: 'profileImage firstname'
             })
             .populate({
                 path: 'match',
+                select: 'commenceTime',
                 match: { commenceTime: { $gt: currentTime } },
-            })
-            .populate({
-                path: 'market',
-                select: 'outcomes', 
-            });
+            }).select('-league -outcome -market -bookmaker -analysis -status');
 
         const validPicks = picks.filter((pick) => pick.match);
 
-        const picksWithSelectedOutcome = validPicks.map((pick) => {
-            const selectedOutcome = pick.market?.outcomes?.find(
-                (outcome) => outcome._id.toString() === pick.outcome
-            );
-
-            return {
-                ...pick._doc,
-                selectedOutcome: selectedOutcome || null, 
-            };
-        });
-
-        res.status(200).json(picksWithSelectedOutcome);
+        res.status(200).json(validPicks);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -97,12 +84,56 @@ exports.getFreePicks = async (req, res) => {
     }
 };
 
-
 exports.getPick = async (req, res) => {
     try {
+        const userId = req.user.id;
         const pickId = req.params.id;
-        const picks = await Pick.find({ _id: pickId }).populate('handicapperId match');
-        res.status(200).json(picks);
+
+        const transaction = await Transaction.findOne({ userId, pickId });
+
+        if (!transaction) {
+            return res.status(403).json({ message: 'Access denied. You have not purchased this pick.' });
+        }
+
+        // Fetch the pick details
+        const pick = await Pick.findById(pickId)
+            .populate({
+                path: 'handicapperId',
+                select: 'firstname lastname',
+            })
+            .populate({
+                path: 'match',
+                select: 'sportTitle commenceTime homeTeam awayTeam',
+            })
+            .populate({
+                path: 'market',
+                select: 'outcomes',
+            });
+
+        if (!pick) {
+            return res.status(404).json({ message: 'Pick not found.' });
+        }
+
+        // Include only the required fields
+        const selectedOutcome = pick.market?.outcomes?.find(
+            (outcome) => outcome._id.toString() === pick.outcome
+        );
+
+        const response = {
+            sportTitle: pick.match?.sportTitle || null,
+            matchTime: pick.match?.commenceTime || null,
+            homeTeam: pick.match?.homeTeam || null,
+            awayTeam: pick.match?.awayTeam || null,
+            handicapper: {
+                firstname: pick.handicapperId?.firstname || null,
+                lastname: pick.handicapperId?.lastname || null,
+            },
+            analysis: pick.analysis || null,
+            createdAt: pick.createdAt || null,
+            selectedOutcome: selectedOutcome || null,
+        };
+
+        res.status(200).json(response);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -195,11 +226,42 @@ exports.getAvailableSubscriptions = async (req, res) => {
 
 exports.getPurchasedPicks = async (req, res) => {
     try {
-        const picks = await Transaction.find({ userId: req.user.id, pickId: { $ne: null } })
-            .populate('pickId');
+        const currentTime = new Date();
+
+        const transactions = await Transaction.find({ userId: req.user.id, pickId: { $ne: null } })
+            .populate({
+                path: 'pickId',
+                populate: [
+                    { path: 'handicapperId' },
+                    { 
+                        path: 'match',
+                        match: { commenceTime: { $gt: currentTime } } 
+                    },
+                    { 
+                        path: 'market',
+                        select: 'outcomes' 
+                    }
+                ]
+            });
+
+        const validPicks = transactions
+            .map(transaction => transaction.pickId)
+            .filter(pick => pick && pick.match);
+
+        const picks = validPicks.map((pick) => {
+            const selectedOutcome = pick.market?.outcomes?.find(
+                (outcome) => outcome._id.toString() === pick.outcome
+            );
+
+            return {
+                ...pick._doc,
+                selectedOutcome: selectedOutcome || null, 
+            };
+        });
+
         res.status(200).json({ picks });
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching purchased picks' });
+        res.status(500).json({ message: error.message });
     }
 };
 
