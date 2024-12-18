@@ -13,6 +13,7 @@ router.get('/get-banner', userController.getBanner);
 router.get('/recent-match', userController.getRecentMatchWithLogos);
 router.get('/get-picks', userController.getAvailablePicks);
 router.get('/free-picks', userController.getFreePicks);
+router.get('/free-pick/:id', userController.getFreePick);
 router.get('/pick/:id', authMiddleware, roleMiddleware(['user']), userController.getPick);
 router.get('/package/:id', authMiddleware, roleMiddleware(['user']), userController.getPackage);
 router.get('/subscription/:id', authMiddleware, roleMiddleware(['user']), userController.getSubscription);

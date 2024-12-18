@@ -84,15 +84,84 @@ exports.getFreePicks = async (req, res) => {
     }
 };
 
+exports.getFreePick = async (req, res) => {
+    try {
+        const pickId = req.params.id;
+
+        // Fetch the pick details and ensure it is a free pick
+        const pick = await Pick.findOne({ _id: pickId, playType: 'Free' })
+            .populate({
+                path: 'handicapperId',
+                select: 'firstname lastname',
+            })
+            .populate({
+                path: 'match',
+                select: 'sportTitle commenceTime homeTeam awayTeam',
+            })
+            .populate({
+                path: 'market',
+                select: 'outcomes',
+            });
+
+        if (!pick) {
+            return res.status(404).json({ message: 'Pick not found or not free.' });
+        }
+
+        // Extract the selected outcome
+        const selectedOutcome = pick.market?.outcomes?.find(
+            (outcome) => outcome._id.toString() === pick.outcome
+        );
+
+        // Format the response with required fields
+        const response = {
+            sportTitle: pick.match?.sportTitle || null,
+            matchTime: pick.match?.commenceTime || null,
+            homeTeam: pick.match?.homeTeam || null,
+            awayTeam: pick.match?.awayTeam || null,
+            handicapper: {
+                firstname: pick.handicapperId?.firstname || null,
+                lastname: pick.handicapperId?.lastname || null,
+            },
+            analysis: pick.analysis || null,
+            createdAt: pick.createdAt || null,
+            selectedOutcome: selectedOutcome || null,
+        };
+
+        res.status(200).json(response);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 exports.getPick = async (req, res) => {
     try {
         const userId = req.user.id;
         const pickId = req.params.id;
 
-        const transaction = await Transaction.findOne({ userId, pickId });
+        // Check if the pick is directly purchased
+        const hasDirectTransaction = await Transaction.findOne({ userId, pickId });
 
-        if (!transaction) {
-            return res.status(403).json({ message: 'Access denied. You have not purchased this pick.' });
+        // Check if the pick is part of a purchased package
+        const hasPackageAccess = await Transaction.findOne({
+            userId,
+            packageId: { $ne: null }, // Ensure package transactions are considered
+        }).populate({
+            path: 'packageId',
+            match: { picks: pickId }, // Check if the package includes the pick
+        });
+
+        // Check if the pick is part of a purchased subscription
+        const hasSubscriptionAccess = await Transaction.findOne({
+            userId,
+            subscriptionId: { $ne: null }, // Ensure subscription transactions are considered
+        }).populate({
+            path: 'subscriptionId',
+            match: { 'leagues': pickId }, // Match subscription-related league or picks
+        });
+
+        // If none of the above access methods are valid, deny access
+        if (!hasDirectTransaction && !hasPackageAccess?.packageId && !hasSubscriptionAccess?.subscriptionId) {
+            return res.status(403).json({ message: 'Access denied. You have not purchased this pick or its associated package/subscription.' });
         }
 
         // Fetch the pick details
@@ -114,11 +183,12 @@ exports.getPick = async (req, res) => {
             return res.status(404).json({ message: 'Pick not found.' });
         }
 
-        // Include only the required fields
+        // Extract the selected outcome
         const selectedOutcome = pick.market?.outcomes?.find(
             (outcome) => outcome._id.toString() === pick.outcome
         );
 
+        // Format the response with required fields
         const response = {
             sportTitle: pick.match?.sportTitle || null,
             matchTime: pick.match?.commenceTime || null,
