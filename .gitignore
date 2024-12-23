@@ -1,3 +1,6 @@
 node_modules/
 
 .env
+
+uploads/banner/*
+uploads/handicappers/*
