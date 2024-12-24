@@ -57,7 +57,7 @@ packageSchema.statics.evaluatePackage = async function (packageId) {
     await packageData.handicapper.save();
 };
 
-cron.schedule('0 * * * *', async () => {
+cron.schedule('30,0 * * * *', async () => {
     try {
         console.log('Running cron job to evaluate live packages...');
         const Package = mongoose.model('Package');
